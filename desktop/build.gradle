@@ -1,0 +1,18 @@
+apply plugin: "java-library"
+
+sourceCompatibility = 21
+targetCompatibility = 21
+
+dependencies {
+    implementation project(":core")
+    implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:${gdxVersion}"
+    implementation "com.badlogicgames.gdx:gdx-platform:${gdxVersion}:natives-desktop"
+}
+
+task run(dependsOn: classes, type: JavaExec) {
+    main = 'com.landsea.game.desktop.DesktopLauncher'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+}
+
+eclipse.project.name = appName + "-desktop"
