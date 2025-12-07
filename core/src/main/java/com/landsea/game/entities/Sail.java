@@ -14,7 +14,7 @@ public class Sail {
         this.gridX = gridX;
         this.gridY = gridY;
         this.angle = 0;
-        this.raised = false;
+        this.raised = true;
     }
 
     public void toggleRaise() {

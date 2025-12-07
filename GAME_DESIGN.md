@@ -1,14 +1,14 @@
 # Landsea - Game Design Document
 
 ## Overview
-**Landsea** is a 2D top-down exploration and survival game inspired by *The Legend of Zelda*, *Stardew Valley*, and the world of *A Wizard of Earthsea*. The player wakes up on a small boat with no memory and must navigate a vast, procedurally generated ocean, gathering resources to upgrade their vessel and survive.
+**Landsea** is a 2D top-down exploration and survival game inspired by *The Legend of Zelda*, *Minecraft*, and the world of *A Wizard of Earthsea*. The player wakes up on a small boat with no memory and must navigate a vast, procedurally generated ocean, gathering resources to upgrade their vessel and survive.
 
 ## Core Concepts
 
 ### 1. The Boat (The "Raft")
 *   **Grid-Based Construction**: The boat is not a single sprite but a grid of tiles. The player can walk freely on the deck.
 *   **Modular Upgrades**: The player expands the boat by placing new deck tiles, walls, and functional modules (Sails, Rudders, Workbenches, Cannons).
-*   **Physics-Based Navigation**: The boat is propelled by wind and ocean currents. The player does not control the boat directly with WASD; instead, they must interact with the **Sail** and **Rudder** to harness the wind.
+*   **Physics-Based Navigation**: The boat is propelled by wind and ocean currents. The player does not control the boat directly with WASD; instead, they must interact with the **Sail** and **Rudder** to harness the wind. (Multiple sails can be added to a single boat). The boat can also have small boats attached (ie lifeboats)
 
 ### 2. The Player
 *   **Independent Movement**: The player character moves independently of the boat. Walking to the edge of the boat allows for fishing or jumping into a lifeboat.

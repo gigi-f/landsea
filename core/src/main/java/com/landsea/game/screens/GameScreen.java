@@ -16,6 +16,8 @@ import com.landsea.game.entities.Player;
 import com.landsea.game.environment.OceanRenderer;
 import com.landsea.game.environment.WindManager;
 import com.landsea.game.input.InputHandler;
+import com.landsea.game.world.WorldManager;
+import com.landsea.game.ui.Hud;
 
 public class GameScreen implements Screen {
     private OrthographicCamera camera;
@@ -26,6 +28,8 @@ public class GameScreen implements Screen {
     private Boat boat;
     private WindManager windManager;
     private OceanRenderer oceanRenderer;
+    private WorldManager worldManager;
+    private Hud hud;
     
     // Visuals
     private Array<Vector2> wakeParticles;
@@ -46,6 +50,8 @@ public class GameScreen implements Screen {
         // Initialize environment
         windManager = new WindManager();
         oceanRenderer = new OceanRenderer();
+        worldManager = new WorldManager();
+        hud = new Hud();
         
         // Initialize boat and player
         boat = new Boat(0, 0);
@@ -76,11 +82,12 @@ public class GameScreen implements Screen {
         // Render
         draw();
     }
-
     private void update(float delta) {
         windManager.update(delta);
         oceanRenderer.update(delta, camera);
-        boat.update(delta, windManager);
+        worldManager.update(player.getWorldPosition());
+        boat.update(delta, windManager, worldManager);
+        player.update(delta, inputHandler.getHorizontal(), inputHandler.getVertical());
         player.update(delta, inputHandler.getHorizontal(), inputHandler.getVertical());
         
         if (inputHandler.isInteractPressed()) {
@@ -99,24 +106,29 @@ public class GameScreen implements Screen {
     }
 
     private void draw() {
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
         // Draw Ocean (Whitecaps and Wind Lines)
         oceanRenderer.render(shapeRenderer, camera, windManager.getWindVector());
         
+        // Draw World (Islands)
+        worldManager.render(shapeRenderer, new Vector2(camera.position.x, camera.position.y), viewport.getWorldWidth(), viewport.getWorldHeight());
+        
         // Draw wake
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         shapeRenderer.setColor(1f, 1f, 1f, 0.5f);
         for (Vector2 p : wakeParticles) {
             shapeRenderer.circle(p.x, p.y, 5);
         }
+        shapeRenderer.end();
         
         // Draw boat (now passes wind manager)
         boat.render(shapeRenderer, windManager);
-        
         // Draw player
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         player.render(shapeRenderer);
-        
         shapeRenderer.end();
+        
+        // Draw HUD
+        hud.render(windManager);
     }
 
     @Override
@@ -139,5 +151,6 @@ public class GameScreen implements Screen {
     @Override
     public void dispose() {
         shapeRenderer.dispose();
+        hud.dispose();
     }
 }

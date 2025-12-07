@@ -51,7 +51,7 @@ public class Boat {
         this.rudder = new Rudder(4, 3);
     }
 
-    public void update(float delta, WindManager windManager) {
+    public void update(float delta, WindManager windManager, com.landsea.game.world.WorldManager worldManager) {
         // 1. Calculate Forces
         Vector2 totalForce = new Vector2(0, 0);
         float totalTorque = 0;
@@ -72,7 +72,8 @@ public class Boat {
             // Max thrust at 0 degrees diff. Zero thrust at 180 degrees diff (Head to wind).
             
             // Actually, let's use dot product for simplicity and robustness
-            Vector2 boatHeading = new Vector2(1, 0).setAngleDeg(angle);
+            // Boat "Forward" is Y-axis (Up) in local space, because the raft is 2x4 (tall)
+            Vector2 boatHeading = new Vector2(0, 1).rotateDeg(angle);
             Vector2 windDir = wind.cpy().nor();
             
             float dot = boatHeading.dot(windDir); // 1.0 = Downwind, -1.0 = Upwind
@@ -93,22 +94,22 @@ public class Boat {
         // Convert velocity to local boat space
         Vector2 localVel = velocity.cpy().rotateDeg(-angle);
         
-        // Forward Drag (Water resistance)
-        float fDrag = -localVel.x * dragForward * localVel.x * Math.signum(localVel.x); // v^2 drag
-        // Sideways Drag (Keel resistance - prevents drift)
-        float sDrag = -localVel.y * dragSideways * Math.abs(localVel.y); // High resistance
+        // Forward Drag (Water resistance) - Forward is Y axis
+        float fDrag = -localVel.y * dragForward * localVel.y * Math.signum(localVel.y); // v^2 drag
+        // Sideways Drag (Keel resistance - prevents drift) - Sideways is X axis
+        float sDrag = -localVel.x * dragSideways * Math.abs(localVel.x); // High resistance
         
         // Apply local drag forces
-        Vector2 localDragForce = new Vector2(fDrag, sDrag);
+        Vector2 localDragForce = new Vector2(sDrag, fDrag);
         // Rotate back to world space
         totalForce.add(localDragForce.rotateDeg(angle));
         
         
         // C. Rudder Forces (Torque)
         // Rudder works based on water flow.
-        // Flow speed over rudder is approx boat forward speed (localVel.x)
+        // Flow speed over rudder is approx boat forward speed (localVel.y)
         // We ignore prop wash from propeller since we have none.
-        float flowSpeed = localVel.x;
+        float flowSpeed = localVel.y;
         
         if (Math.abs(flowSpeed) > 1.0f) {
             float rudderAngle = rudder.getAngle(); // +/- 45 degrees
@@ -138,17 +139,56 @@ public class Boat {
         float angularAccel = totalTorque / momentOfInertia;
         angularVelocity += angularAccel * delta;
         angle += angularVelocity * delta;
+        
+        // Collision Detection
+        if (worldManager != null && checkCollision(worldManager)) {
+            // Revert position (simple)
+            position.add(-velocity.x * delta, -velocity.y * delta);
+            angle -= angularVelocity * delta;
+            
+            // Bounce / Stop
+            velocity.scl(-0.2f); // Bounce back a bit
+            angularVelocity *= 0.5f;
+        }
+    }
+    
+    private boolean checkCollision(com.landsea.game.world.WorldManager worldManager) {
+        float gridOriginX = -(width * tileSize) / 2;
+        float gridOriginY = -(height * tileSize) / 2;
+        
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (deck[x][y]) {
+                    // Calculate world position of this tile center
+                    float tileLocalX = gridOriginX + x * tileSize + tileSize / 2;
+                    float tileLocalY = gridOriginY + y * tileSize + tileSize / 2;
+                    
+                    Vector2 tilePos = new Vector2(tileLocalX, tileLocalY);
+                    tilePos.rotateDeg(angle);
+                    tilePos.add(position);
+                    
+                    if (worldManager.isLand(tilePos.x, tilePos.y)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     public void render(ShapeRenderer shapeRenderer, WindManager windManager) {
+        // shapeRenderer.end(); // End previous batch
+
         // Save original matrix
         com.badlogic.gdx.math.Matrix4 originalMatrix = shapeRenderer.getTransformMatrix().cpy();
         
         // Apply transformation: Translate to boat pos, then Rotate
-        com.badlogic.gdx.math.Matrix4 newMatrix = new com.badlogic.gdx.math.Matrix4();
+        com.badlogic.gdx.math.Matrix4 newMatrix = originalMatrix.cpy();
         newMatrix.translate(position.x, position.y, 0);
         newMatrix.rotate(0, 0, 1, angle);
+        
         shapeRenderer.setTransformMatrix(newMatrix);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled); // Begin new batch
         
         // Draw relative to (0,0)
         shapeRenderer.setColor(new Color(0.6f, 0.4f, 0.2f, 1f)); // Brown color for wood
@@ -173,8 +213,31 @@ public class Boat {
         Vector2 localWind = windManager.getWindVector().cpy().rotateDeg(-angle);
         sail.render(shapeRenderer, Vector2.Zero, tileSize, width, height, localWind);
         
-        // Restore matrix
+        shapeRenderer.end(); // End boat batch
+        
+        // Restore matrix to World Space before drawing debug points
         shapeRenderer.setTransformMatrix(originalMatrix);
+        
+        // Debug: Draw collision points
+        /*
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(Color.RED);
+        float gridOriginX = -(width * tileSize) / 2;
+        float gridOriginY = -(height * tileSize) / 2;
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                if (deck[x][y]) {
+                    float tileLocalX = gridOriginX + x * tileSize + tileSize / 2;
+                    float tileLocalY = gridOriginY + y * tileSize + tileSize / 2;
+                    Vector2 tilePos = new Vector2(tileLocalX, tileLocalY).rotateDeg(angle).add(position);
+                    shapeRenderer.circle(tilePos.x, tilePos.y, 3);
+                }
+            }
+        }
+        shapeRenderer.end();
+        */
+        
+        // shapeRenderer.begin(ShapeRenderer.ShapeType.Filled); // Begin next batch
     }
 
     public Vector2 getPosition() {

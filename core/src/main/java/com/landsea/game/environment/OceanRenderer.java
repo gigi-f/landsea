@@ -53,6 +53,7 @@ public class OceanRenderer {
     }
     
     public void render(ShapeRenderer shapeRenderer, OrthographicCamera camera, Vector2 windVector) {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         // Draw Whitecaps
         shapeRenderer.setColor(1f, 1f, 1f, 0.6f);
         
@@ -92,5 +93,6 @@ public class OceanRenderer {
                 shapeRenderer.rect(drawX, y, 20, 2, 10, 1, 1, 1, windAngle);
             }
         }
+        shapeRenderer.end();
     }
 }
