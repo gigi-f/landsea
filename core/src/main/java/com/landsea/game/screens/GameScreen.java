@@ -15,9 +15,14 @@ import com.landsea.game.entities.Boat;
 import com.landsea.game.entities.Player;
 import com.landsea.game.environment.OceanRenderer;
 import com.landsea.game.environment.WindManager;
+import com.landsea.game.environment.TimeManager;
+import com.landsea.game.environment.WeatherManager;
+import com.landsea.game.environment.LightingSystem;
 import com.landsea.game.input.InputHandler;
 import com.landsea.game.world.WorldManager;
 import com.landsea.game.ui.Hud;
+import com.landsea.game.crafting.CraftingManager;
+import com.landsea.game.crafting.CraftingRecipe;
 
 public class GameScreen implements Screen {
     private OrthographicCamera camera;
@@ -27,9 +32,17 @@ public class GameScreen implements Screen {
     private Player player;
     private Boat boat;
     private WindManager windManager;
+    private TimeManager timeManager;
+    private WeatherManager weatherManager;
+    private LightingSystem lightingSystem;
     private OceanRenderer oceanRenderer;
     private WorldManager worldManager;
+    private CraftingManager craftingManager;
     private Hud hud;
+    private boolean showInventory = false;
+    private boolean inventoryKeyPressed = false;
+    private boolean showCrafting = false;
+    private boolean craftingKeyPressed = false;
     
     // Visuals
     private Array<Vector2> wakeParticles;
@@ -49,12 +62,19 @@ public class GameScreen implements Screen {
         
         // Initialize environment
         windManager = new WindManager();
+        timeManager = new TimeManager();
+        weatherManager = new WeatherManager();
+        lightingSystem = new LightingSystem();
         oceanRenderer = new OceanRenderer();
         worldManager = new WorldManager();
+        craftingManager = new CraftingManager();
         hud = new Hud();
         
+        // Find safe spawn point (water)
+        Vector2 spawnPos = worldManager.findSafeSpawn();
+        
         // Initialize boat and player
-        boat = new Boat(0, 0);
+        boat = new Boat(spawnPos.x, spawnPos.y);
         player = new Player(boat);
         
         wakeParticles = new Array<>();
@@ -84,14 +104,63 @@ public class GameScreen implements Screen {
     }
     private void update(float delta) {
         windManager.update(delta);
+        timeManager.update(delta);
+        weatherManager.update(delta, windManager);
         oceanRenderer.update(delta, camera);
         worldManager.update(player.getWorldPosition());
         boat.update(delta, windManager, worldManager);
-        player.update(delta, inputHandler.getHorizontal(), inputHandler.getVertical());
-        player.update(delta, inputHandler.getHorizontal(), inputHandler.getVertical());
+        player.update(delta, inputHandler.getHorizontal(), inputHandler.getVertical(), worldManager);
         
         if (inputHandler.isInteractPressed()) {
-            player.interact();
+            player.interact(worldManager);
+        }
+        
+        if (inputHandler.isAttackPressed()) {
+            player.attack(worldManager);
+        }
+        
+        if (inputHandler.isPlacePressed()) {
+            player.place(worldManager);
+        }
+        
+        if (inputHandler.isConsumePressed()) {
+            player.tryConsume();
+        }
+        
+        if (inputHandler.isKickPressed()) {
+            boat.kickOff(worldManager);
+        }
+        
+        if (inputHandler.isInventoryPressed()) {
+            if (!inventoryKeyPressed) {
+                showInventory = !showInventory;
+                showCrafting = false; // Close crafting if inventory opens
+                inventoryKeyPressed = true;
+            }
+        } else {
+            inventoryKeyPressed = false;
+        }
+        
+        if (inputHandler.isCraftingPressed()) {
+            if (!craftingKeyPressed) {
+                showCrafting = !showCrafting;
+                showInventory = false; // Close inventory if crafting opens
+                craftingKeyPressed = true;
+            }
+        } else {
+            craftingKeyPressed = false;
+        }
+        
+        if (showCrafting) {
+            int num = inputHandler.getAndClearNumberPressed();
+            if (num > 0 && num <= craftingManager.getRecipes().size()) {
+                CraftingRecipe recipe = craftingManager.getRecipes().get(num - 1);
+                if (craftingManager.craft(player.getInventory(), recipe)) {
+                    System.out.println("Crafted " + recipe.getResult().getName());
+                } else {
+                    System.out.println("Cannot craft " + recipe.getResult().getName());
+                }
+            }
         }
         
         // Update wake particles
@@ -127,13 +196,20 @@ public class GameScreen implements Screen {
         player.render(shapeRenderer);
         shapeRenderer.end();
         
+        // Draw Lighting
+        lightingSystem.render(timeManager, camera, worldManager);
+        
+        // Draw Weather (Rain)
+        oceanRenderer.renderRain(shapeRenderer, camera, weatherManager);
+        
         // Draw HUD
-        hud.render(windManager);
+        hud.render(windManager, timeManager, weatherManager, player, camera, showInventory, showCrafting, craftingManager);
     }
 
     @Override
     public void resize(int width, int height) {
         viewport.update(width, height, true);
+        lightingSystem.resize(width, height);
     }
 
     @Override
@@ -152,5 +228,6 @@ public class GameScreen implements Screen {
     public void dispose() {
         shapeRenderer.dispose();
         hud.dispose();
+        lightingSystem.dispose();
     }
 }

@@ -6,9 +6,16 @@ import com.badlogic.gdx.InputAdapter;
 public class InputHandler extends InputAdapter {
     
     private boolean up, down, left, right;
+    private boolean interact, kick, inventory, consume, crafting, attack, place;
+
+    private int lastNumberPressed = -1;
 
     @Override
     public boolean keyDown(int keycode) {
+        if (keycode >= Input.Keys.NUM_1 && keycode <= Input.Keys.NUM_9) {
+            lastNumberPressed = keycode - Input.Keys.NUM_1 + 1;
+        }
+        
         switch (keycode) {
             case Input.Keys.W:
             case Input.Keys.UP:
@@ -28,6 +35,25 @@ public class InputHandler extends InputAdapter {
                 break;
             case Input.Keys.E:
                 interact = true;
+                break;
+            case Input.Keys.SPACE:
+                attack = true;
+                break;
+            case Input.Keys.C:
+                consume = true;
+                break;
+            case Input.Keys.B:
+                crafting = true;
+                break;
+            case Input.Keys.P:
+                place = true;
+                break;
+            case Input.Keys.K:
+                kick = true;
+                break;
+            case Input.Keys.I:
+            case Input.Keys.TAB:
+                inventory = true;
                 break;
         }
         return true;
@@ -55,6 +81,25 @@ public class InputHandler extends InputAdapter {
             case Input.Keys.E:
                 interact = false;
                 break;
+            case Input.Keys.SPACE:
+                attack = false;
+                break;
+            case Input.Keys.C:
+                consume = false;
+                break;
+            case Input.Keys.B:
+                crafting = false;
+                break;
+            case Input.Keys.P:
+                place = false;
+                break;
+            case Input.Keys.K:
+                kick = false;
+                break;
+            case Input.Keys.I:
+            case Input.Keys.TAB:
+                inventory = false;
+                break;
         }
         return true;
     }
@@ -71,9 +116,36 @@ public class InputHandler extends InputAdapter {
         return interact;
     }
     
-    private boolean interact;
+    public boolean isAttackPressed() {
+        return attack;
+    }
+    
+    public boolean isPlacePressed() {
+        return place;
+    }
 
+    public boolean isConsumePressed() {
+        return consume;
+    }
 
+    public boolean isCraftingPressed() {
+        return crafting;
+    }
+
+    public boolean isKickPressed() {
+        return kick;
+    }
+    
+    public int getAndClearNumberPressed() {
+        int num = lastNumberPressed;
+        lastNumberPressed = -1;
+        return num;
+    }
+    
+    public boolean isInventoryPressed() {
+        return inventory;
+    }
+    
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         // Handle mouse/touch press

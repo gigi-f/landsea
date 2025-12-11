@@ -10,6 +10,7 @@ import com.badlogic.gdx.utils.Array;
 public class OceanRenderer {
     private Array<Whitecap> whitecaps;
     private float spawnTimer;
+    private float stateTime;
     
     private class Whitecap {
         Vector2 position;
@@ -28,6 +29,7 @@ public class OceanRenderer {
     }
     
     public void update(float delta, OrthographicCamera camera) {
+        stateTime += delta;
         // Spawn new whitecaps around the camera
         spawnTimer += delta;
         if (spawnTimer > 0.1f) { // Spawn rate
@@ -71,28 +73,50 @@ public class OceanRenderer {
                 shapeRenderer.rect(w.position.x, w.position.y, 10, 2);
             }
         }
+        shapeRenderer.end();
+    }
+    
+    public void renderRain(ShapeRenderer shapeRenderer, OrthographicCamera camera, WeatherManager weatherManager) {
+        if (weatherManager.getCurrentState() == WeatherManager.WeatherState.CLEAR) return;
         
-        // Draw Wind Lines (moved from GameScreen)
-        shapeRenderer.setColor(0.0f, 0.5f, 0.7f, 0.5f);
-        float windAngle = windVector.angleDeg();
+        float intensity = (weatherManager.getCurrentState() == WeatherManager.WeatherState.STORM) ? 2.0f : 1.0f;
         
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        shapeRenderer.setColor(0.7f, 0.7f, 0.8f, 0.5f);
+        
+        // Draw rain streaks
+        int drops = (int)(500 * intensity);
+        float fallSpeed = 800f;
+        float windX = (weatherManager.getCurrentState() == WeatherManager.WeatherState.STORM) ? -200f : -50f;
+        
+        float viewW = camera.viewportWidth;
+        float viewH = camera.viewportHeight;
         float camX = camera.position.x;
         float camY = camera.position.y;
-        float spacing = 100f;
         
-        // Snap grid to avoid jitter
-        float startX = (float)Math.floor((camX - 700) / spacing) * spacing;
-        float startY = (float)Math.floor((camY - 400) / spacing) * spacing;
-        
-        for (float x = startX; x < camX + 700; x += spacing) {
-            for (float y = startY; y < camY + 400; y += spacing) {
-                // Offset based on time to make them move
-                float offsetX = (System.currentTimeMillis() / 10f) % spacing;
-                float drawX = x + (windVector.x > 0 ? offsetX : -offsetX);
-                
-                shapeRenderer.rect(drawX, y, 20, 2, 10, 1, 1, 1, windAngle);
-            }
+        for (int i = 0; i < drops; i++) {
+            // Pseudo-random based on index and time
+            float r1 = (float)Math.sin(i * 12.9898 + stateTime * 0.1f);
+            float r2 = (float)Math.cos(i * 78.233 + stateTime * 0.1f);
+            
+            // Normalize to 0-1
+            r1 = (r1 + 1) / 2;
+            r2 = (r2 + 1) / 2;
+            
+            // Position relative to camera, wrapping
+            float x = (r1 * viewW + stateTime * windX) % viewW;
+            float y = (r2 * viewH - stateTime * fallSpeed) % viewH;
+            
+            // Adjust to camera space
+            if (x < 0) x += viewW;
+            if (y < 0) y += viewH;
+            
+            x += camX - viewW/2;
+            y += camY - viewH/2;
+            
+            shapeRenderer.line(x, y, x + windX * 0.05f, y - fallSpeed * 0.05f);
         }
+        
         shapeRenderer.end();
     }
 }
